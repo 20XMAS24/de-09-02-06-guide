@@ -1,329 +1,499 @@
 # 📗 Модуль 1 — Настройка сетевой инфраструктуры
 
-> **Время:** 1 час | **Баллы:** 25 (ПА) / 26 (ДЭ БУ) / 27 (ДЭ ПУ)
+> ⏱ **Время:** 1 час | ℹ️ **Применяется:** ПА, ДЭ БУ, ДЭ ПУ | ⭐ **Баллы:** 25–27
 
-[← Назад к README](../README.md)
+[← README](../README.md) | [Модуль 2 →](module2.md)
 
 ---
 
-## Задание 1 — Базовая настройка устройств: hostname + IP-адресация (VLSM)
+## ⏰ Чек-лист по модулю
 
-### Почему VLSM?
-Вместо одной большой сети делим пространство на подсети по фактической потребности:
+- [ ] Зад. 1 — hostname на всех 6 устройствах
+- [ ] Зад. 2 — IP-адресация (VLSM) на ISP, HQ-RTR, BR-RTR, HQ-SRV, BR-SRV
+- [ ] Зад. 3 — Пользователи sshuser + net_admin
+- [ ] Зад. 4 — VLAN 100, 200, 999 на HQ-RTR (транкинг)
+- [ ] Зад. 5 — SSH: порт 2026, баннер, MaxAuthTries 2
+- [ ] Зад. 6 — GRE-туннель между HQ-RTR и BR-RTR
+- [ ] Зад. 7 — OSPF (динамическая маршрутизация) через туннель
+- [ ] Зад. 8 — NAT на HQ-RTR и BR-RTR
+- [ ] Зад. 9 — DHCP для HQ-CLI
+- [ ] Зад. 10 — DNS на HQ-SRV
+- [ ] Зад. 11 — Часовой пояс
 
-| Сегмент | Требование | Маска | Пример сети | Пример шлюза |
-|---|---|---|---|---|
-| HQ-SRV (VLAN 100) | ≤ 32 адреса | /27 | 192.168.100.0/27 | 192.168.100.1 |
-| HQ-CLI (VLAN 200) | ≥ 16 адресов | /27 или /28 | 192.168.200.0/27 | 192.168.200.1 |
-| VLAN 999 (управление) | ≤ 8 адресов | /29 | 192.168.99.0/29 | 192.168.99.1 |
-| BR-SRV | ≤ 16 адресов | /28 | 192.168.20.0/28 | 192.168.20.1 |
+---
 
-> ⚠️ **Важно:** Точные адреса на экзамене не заданы — участник сам выбирает из приватных диапазонов RFC1918 (10.x.x.x, 172.16-31.x.x, 192.168.x.x).
+## Задание 1 — Установка hostname
 
-### Установка hostname
+> 📌 **Что делает эта команда:** Задаёт FQDN-имя машины (формат: `узел.домен`). Имя сразу записывается в `/etc/hostname` и применяется до следующей перезагрузки.
+
+### Выполняем на каждой ВМ:
 
 ```bash
-# Используйте FQDN (полное доменное имя)
-hostnamectl set-hostname isp.au-team.irpo         # на ISP
-hostnamectl set-hostname hq-rtr.au-team.irpo       # на HQ-RTR
-hostnamectl set-hostname br-rtr.au-team.irpo       # на BR-RTR
-hostnamectl set-hostname hq-srv.au-team.irpo       # на HQ-SRV
-hostnamectl set-hostname br-srv.au-team.irpo       # на BR-SRV
-hostnamectl set-hostname hq-cli.au-team.irpo       # на HQ-CLI
+# ISP
+hostnamectl set-hostname isp.au-team.irpo
+
+# HQ-RTR
+hostnamectl set-hostname hq-rtr.au-team.irpo
+
+# BR-RTR
+hostnamectl set-hostname br-rtr.au-team.irpo
+
+# HQ-SRV
+hostnamectl set-hostname hq-srv.au-team.irpo
+
+# BR-SRV
+hostnamectl set-hostname br-srv.au-team.irpo
+
+# HQ-CLI
+hostnamectl set-hostname hq-cli.au-team.irpo
+```
+
+### Проверка (на каждом)
+
+```bash
+hostname
+# должно вывести: hq-rtr.au-team.irpo
+
+# Дополнительно добавить в /etc/hosts для локального разрешения:
+echo "127.0.1.1 hq-rtr.au-team.irpo hq-rtr" >> /etc/hosts
+# (вместо hq-rtr — имя вашего узла)
+```
+
+---
+
+## Задание 2 — IP-адресация (VLSM)
+
+> 📌 **Что такое VLSM:** Variable Length Subnet Mask — разделение сети на подсети разных размеров. На экзамене вы сами выбираете адреса из RFC1918 и придумываете маски.
+
+### Планировка адресного пространства
+
+| Сегмент | Требуется хостов | Маска | Дост. адреса | Пример сети |
+|---|---|---|---|---|
+| ISP → HQ-RTR | 2 | /28 (14 хостов) | фикс. | 172.16.1.0/28 |
+| ISP → BR-RTR | 2 | /28 | фикс. | 172.16.2.0/28 |
+| HQ-SRV (VLAN100) | ≤32 | /27 (30 хостов) | 30 | 192.168.100.0/27 |
+| HQ-CLI (VLAN200) | ≥32 | /27 | 30 | 192.168.200.0/27 |
+| VLAN999 (mgmt) | ≤8 | /29 (6 хостов) | 6 | 192.168.99.0/29 |
+| BR-SRV | ≤16 | /28 (14 хостов) | 14 | 192.168.20.0/28 |
+| GRE-туннель | 2 | /30 | 2 | 10.0.0.0/30 |
+
+### Настройка адресов в Альт Linux (через nmcli)
+
+> ⚠️ В Альт Linux сеть настраивается через **nmcli** (не через `/etc/network/interfaces` и не через ip route save).
+
+```bash
+# Шаг 1: узнать имена интерфейсов (очень важно!)
+ip link show
+# Или:
+nmcli con show
+# Обычно eth0, eth1, eth2... в ALT JeOS
+# Шаг 2: присвоить адрес
+# (замените "ens18" на ваше имя интерфейса)
+nmcli con mod "ens18" \
+  ipv4.addresses 192.168.100.2/27 \
+  ipv4.gateway 192.168.100.1 \
+  ipv4.dns "192.168.100.2" \
+  ipv4.method manual
+nmcli con up "ens18"
+```
+
+### Настройка ISP — 3 интерфейса
+
+```bash
+# ==== На ISP ====
+# eth0 (или ens18) — внешний, DHCP от провайдера (или в задании иногда стат. адрес)
+nmcli con mod "ens18" ipv4.method auto
+nmcli con up "ens18"
+
+# eth1 (ens19) — сеть 172.16.1.0/28 (к HQ-RTR)
+nmcli con mod "ens19" \
+  ipv4.addresses 172.16.1.1/28 \
+  ipv4.method manual
+nmcli con up "ens19"
+
+# eth2 (ens20) — сеть 172.16.2.0/28 (к BR-RTR)
+nmcli con mod "ens20" \
+  ipv4.addresses 172.16.2.1/28 \
+  ipv4.method manual
+nmcli con up "ens20"
 
 # Проверка
-hostname
-```
-
-### Настройка IP-адресов (Альт Linux)
-
-```bash
-# Список интерфейсов
 ip a
-
-# Узнать имя интерфейса
-ip link show
-
-# Настройка через nmcli (рекомендуется для Альт)
-nmcli con mod "Wired connection 1" ipv4.addresses 192.168.100.2/27 ipv4.gateway 192.168.100.1 ipv4.method manual
-nmcli con up "Wired connection 1"
-
-# Или через /etc/net (старый метод Альт)
-vim /etc/net/ifaces/eth0/ipv4address
-# запиши: 192.168.100.2/27
-vim /etc/net/ifaces/eth0/ipv4route
-# запиши: default via 192.168.100.1
-service network restart
 ```
 
----
-
-## Задание 2 — Настройка ISP: NAT, DHCP, маршруты
-
-### Настройка интерфейсов ISP
+### Настройка HQ-RTR — адрес WAN-интерфейса
 
 ```bash
-# eth0 — внешний (получает DHCP от провайдера)
-nmcli con mod "Wired connection 1" ipv4.method auto
-nmcli con up "Wired connection 1"
+# ==== На HQ-RTR ====
+# eth0 (ens18) — в сторону ISP
+nmcli con mod "ens18" \
+  ipv4.addresses 172.16.1.2/28 \
+  ipv4.gateway 172.16.1.1 \
+  ipv4.method manual
+nmcli con up "ens18"
 
-# eth1 — в сторону HQ-RTR
-nmcli con mod "Wired connection 2" ipv4.addresses 172.16.1.1/28 ipv4.method manual
-nmcli con up "Wired connection 2"
-
-# eth2 — в сторону BR-RTR
-nmcli con mod "Wired connection 3" ipv4.addresses 172.16.2.1/28 ipv4.method manual
-nmcli con up "Wired connection 3"
+# Проверка до ISP:
+ping -c3 172.16.1.1
 ```
 
-### Включить IP форвардинг
+### Настройка BR-RTR
 
 ```bash
-echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-sysctl -p
+# ==== На BR-RTR ====
+nmcli con mod "ens18" \
+  ipv4.addresses 172.16.2.2/28 \
+  ipv4.gateway 172.16.2.1 \
+  ipv4.method manual
+nmcli con up "ens18"
+
+# eth1 (ens19) — в сторону BR-SRV
+nmcli con mod "ens19" \
+  ipv4.addresses 192.168.20.1/28 \
+  ipv4.method manual
+nmcli con up "ens19"
+
+ping -c3 172.16.2.1
 ```
 
-### NAT (masquerade) на ISP для HQ-RTR и BR-RTR
+### Настройка HQ-SRV
 
 ```bash
-# Через iptables
-iptables -t nat -A POSTROUTING -o eth0 -s 172.16.1.0/28 -j MASQUERADE
-iptables -t nat -A POSTROUTING -o eth0 -s 172.16.2.0/28 -j MASQUERADE
+# ==== На HQ-SRV ====
+nmcli con mod "ens18" \
+  ipv4.addresses 192.168.100.2/27 \
+  ipv4.gateway 192.168.100.1 \
+  ipv4.dns "127.0.0.1" \
+  ipv4.method manual
+nmcli con up "ens18"
+```
 
-# Сохранить правила
-iptables-save > /etc/sysconfig/iptables
-apt-get install -y iptables-services
-systemctl enable iptables
+### Настройка BR-SRV
+
+```bash
+# ==== На BR-SRV ====
+nmcli con mod "ens18" \
+  ipv4.addresses 192.168.20.2/28 \
+  ipv4.gateway 192.168.20.1 \
+  ipv4.method manual
+nmcli con up "ens18"
 ```
 
 ---
 
 ## Задание 3 — Создание пользователей
 
-### Пользователь sshuser на HQ-SRV и BR-SRV
+> 📌 Пользователь **sshuser** — на серверах (HQ-SRV, BR-SRV). Пользователь **net_admin** — на маршрутизаторах (HQ-RTR, BR-RTR).
+
+### sshuser на HQ-SRV и BR-SRV
 
 ```bash
-# Создать пользователя с UID=2026
+# Создать пользователя с UID=2026 (-u), домашняя директория (-m), shell (-s)
 useradd -u 2026 -m -s /bin/bash sshuser
 
 # Установить пароль
 echo "sshuser:P@ssw0rd" | chpasswd
 
-# Дать sudo без пароля (NOPASSWD)
-echo "sshuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-# Или лучше через visudo:
-echo "sshuser ALL=(ALL) NOPASSWD:ALL" | sudo EDITOR='tee -a' visudo
+# Дать права sudo без пароля через visudo:
+visudo
+# Добавить в конец файла (до строки #includedir):
+# sshuser ALL=(ALL) NOPASSWD: ALL
 
-# Проверка
+# Проверка:
 id sshuser
+# вывод: uid=2026(sshuser) gid=2026(sshuser) groups=2026(sshuser)
 ```
 
-### Пользователь net_admin на HQ-RTR и BR-RTR (если Linux)
+### net_admin на HQ-RTR и BR-RTR
 
 ```bash
 useradd -m -s /bin/bash net_admin
 echo "net_admin:P@ssw0rd" | chpasswd
-echo "net_admin ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+visudo
+# Добавить:
+# net_admin ALL=(ALL) NOPASSWD: ALL
 ```
 
 ---
 
-## Задание 4 — Настройка VLAN и router-on-a-stick на HQ-RTR
+## Задание 4 — VLAN (router-on-a-stick) на HQ-RTR
 
-### Концепция
-
-Один физический порт HQ-RTR разделяется на подинтерфейсы (trunk). HQ-SW настраивается в режиме trunk на порту к HQ-RTR.
-
-### На HQ-RTR (Linux: Альт JeOS)
+> 📌 **Что делаем:** eth1 (ens19) HQ-RTR — транк-порт к HQ-сети. На нём создаём VLAN-подинтерфейсы. В Proxmox на адаптере vmbr3 тэг не ставим — теги проходят через ОС.
 
 ```bash
-# Создаём VLAN-интерфейсы на eth0
-# VLAN 100 - HQ-SRV
-nmcli con add type vlan con-name vlan100 dev eth0 id 100
-nmcli con mod vlan100 ipv4.addresses 192.168.100.1/27 ipv4.method manual
+# ==== На HQ-RTR ====
+
+# Сначала убедитесь, что eth1 (или ens19) поднят:
+ip link show ens19
+
+# Создаём VLAN 100 (для HQ-SRV)
+nmcli con add type vlan \
+  con-name vlan100 \
+  dev ens19 \
+  id 100 \
+  ipv4.addresses 192.168.100.1/27 \
+  ipv4.method manual
 nmcli con up vlan100
 
-# VLAN 200 - HQ-CLI
-nmcli con add type vlan con-name vlan200 dev eth0 id 200
-nmcli con mod vlan200 ipv4.addresses 192.168.200.1/27 ipv4.method manual
+# Создаём VLAN 200 (для HQ-CLI, DHCP-сервер)
+nmcli con add type vlan \
+  con-name vlan200 \
+  dev ens19 \
+  id 200 \
+  ipv4.addresses 192.168.200.1/27 \
+  ipv4.method manual
 nmcli con up vlan200
 
-# VLAN 999 - management
-nmcli con add type vlan con-name vlan999 dev eth0 id 999
-nmcli con mod vlan999 ipv4.addresses 192.168.99.1/29 ipv4.method manual
+# Создаём VLAN 999 (управление)
+nmcli con add type vlan \
+  con-name vlan999 \
+  dev ens19 \
+  id 999 \
+  ipv4.addresses 192.168.99.1/29 \
+  ipv4.method manual
 nmcli con up vlan999
 
-# Проверка
-ip a show eth0.100
-ip a show eth0.200
-ip a show eth0.999
+# Проверка:
+ip a show ens19.100
+ip a show ens19.200
+ip a show ens19.999
 ```
 
-### На HQ-SW (если EcoRouter/Linux)
+### Настройка HQ-SRV для работы через VLAN 100
 
 ```bash
-# Если используется Linux-коммутатор (bridge)
-# Создаём бриджи для каждого VLAN
-ip link add name br100 type bridge
-ip link set eth1 master br100         # порт к HQ-SRV - access VLAN100
-ip link set br100 up
-ip link set eth1 up
-
-# На trunk-порту (к HQ-RTR) помечаем tagged-траффик
-# Создаём VLAN-подинтерфейсы на trunk-порте (eth0 = порт к HQ-RTR)
-ip link add link eth0 name eth0.100 type vlan id 100
-ip link add link eth0 name eth0.200 type vlan id 200
-ip link add link eth0 name eth0.999 type vlan id 999
-ip link set eth0.100 master br100
+# ==== На HQ-SRV ====
+# HQ-SRV подключён напрямую к vmbr3 в Proxmox
+# Никаких VLAN-настроек на нём нет — он заходит в VLAN100 через HQ-RTR
+# HQ-SRV видит только разтегированный траффик VLAN100 со стороны HQ-RTR
+# В Proxmox: VLAN Tag = 100 на адаптере HQ-SRV -> vmbr3
+# Или (если HQ-SRV на vmbr3 без тэга, а HQ-RTR делает разтегирование):
+nmcli con mod "ens18" \
+  ipv4.addresses 192.168.100.2/27 \
+  ipv4.gateway 192.168.100.1 \
+  ipv4.method manual
+nmcli con up "ens18"
 ```
 
 ---
 
-## Задание 5 — Настройка SSH на HQ-SRV и BR-SRV
+## Задание 5 — SSH на HQ-SRV и BR-SRV
+
+> 📌 Требуется: порт 2026, баннер "Аутхоризован доступ только для авторизованных", макс. 2 попытки.
 
 ```bash
-# Открыть конфиг SSH
-vim /etc/ssh/sshd_config
+# ==== На HQ-SRV и BR-SRV ====
+
+# Открыть конфиг:
+vim /etc/openssh/sshd_config
+# (в Альт путь именно /etc/openssh/sshd_config, а не /etc/ssh/)
 ```
 
-Изменить или добавить следующие строки:
+Найти и изменить строки (или добавить, если нет):
 
 ```
 Port 2026
 AllowUsers sshuser
 MaxAuthTries 2
-Banner /etc/ssh/banner
+Banner /etc/openssh/banner
 ```
 
 ```bash
 # Создать файл баннера
-echo "Authorized access only" > /etc/ssh/banner
+echo "Authorized access only" > /etc/openssh/banner
 
-# Перезапустить SSH
+# Перезапустить SSH (в Альт служба называется sshd)
 systemctl restart sshd
 
+# Добавить в автозапуск
+systemctl enable sshd
+
 # Проверка с другой машины:
-ssh -p 2026 sshuser@<ip-hq-srv>
+ssh -p 2026 sshuser@192.168.100.2
+# Должен появиться баннер: Authorized access only
 ```
 
 ---
 
-## Задание 6 — IP-туннель HQ-RTR ↔ BR-RTR (GRE или IP-in-IP)
+## Задание 6 — GRE-туннель HQ-RTR ↔ BR-RTR
 
-### Вариант GRE (рекомендуется)
+> 📌 **Что такое GRE:** Generic Routing Encapsulation — пакует IP-пакеты внутрь других IP-пакетов. Создаёт виртуальный канал между двумя роутерами через сеть ISP.
 
 ```bash
-# На HQ-RTR
-ip tunnel add gre1 mode gre remote 172.16.2.2 local 172.16.1.2 ttl 255
-ip addr add 10.0.0.1/30 dev gre1
-ip link set gre1 up
+# ==== На HQ-RTR ====
 
-# Чтобы туннель переживал перезагрузку, добавить в /etc/network/interfaces или nmcli:
-nmcli con add type ip-tunnel con-name gre1 mode gre remote 172.16.2.2 local 172.16.1.2
-nmcli con mod gre1 ipv4.addresses 10.0.0.1/30 ipv4.method manual
+# Через nmcli (автозапуск заботится сам):
+nmcli con add type ip-tunnel \
+  con-name gre1 \
+  ifname gre1 \
+  mode gre \
+  remote 172.16.2.2 \
+  local 172.16.1.2
+nmcli con mod gre1 \
+  ipv4.addresses 10.0.0.1/30 \
+  ipv4.method manual
 nmcli con up gre1
+
+# Проверка:
+ip a show gre1
+# Должна быть адрес: 10.0.0.1/30
 ```
 
 ```bash
-# На BR-RTR
-nmcli con add type ip-tunnel con-name gre1 mode gre remote 172.16.1.2 local 172.16.2.2
-nmcli con mod gre1 ipv4.addresses 10.0.0.2/30 ipv4.method manual
+# ==== На BR-RTR ====
+nmcli con add type ip-tunnel \
+  con-name gre1 \
+  ifname gre1 \
+  mode gre \
+  remote 172.16.1.2 \
+  local 172.16.2.2
+nmcli con mod gre1 \
+  ipv4.addresses 10.0.0.2/30 \
+  ipv4.method manual
 nmcli con up gre1
 
-# Проверка
-ping 10.0.0.1   # с BR-RTR до HQ-RTR через туннель
-```
-
-### IP-in-IP (альтернатива)
-
-```bash
-# На HQ-RTR
-ip tunnel add ipip1 mode ipip remote 172.16.2.2 local 172.16.1.2
-ip addr add 10.0.0.1/30 dev ipip1
-ip link set ipip1 up
-
-# На BR-RTR
-ip tunnel add ipip1 mode ipip remote 172.16.1.2 local 172.16.2.2
-ip addr add 10.0.0.2/30 dev ipip1
-ip link set ipip1 up
+# Проверка (с BR-RTR до HQ-RTR):
+ping -c3 10.0.0.1
+# Должны быть ответы!
 ```
 
 ---
 
-## Задание 7 — Динамическая маршрутизация (OSPF)
+## Задание 7 — OSPF (FRRouting)
 
-### Установка FRRouting
+> 📌 **Что такое OSPF:** протокол динамической маршрутизации. Через GRE-туннель HQ-RTR и BR-RTR обменяются таблицами маршрутов и знают друг о друге.
 
 ```bash
+# ==== На HQ-RTR и BR-RTR ====
+
+# Установить FRRouting
 apt-get install -y frr
 
-# Включить OSPF
+# Включить демон OSPF:
 sed -i 's/ospfd=no/ospfd=yes/' /etc/frr/daemons
 systemctl restart frr
+systemctl enable frr
+
+# Проверка, что FRR запустился:
+systemctl status frr
+vtysh -c "show version"
 ```
 
 ### Настройка OSPF на HQ-RTR
 
 ```bash
+# Входим в интерактивный режим vtysh:
 vtysh
-# Далее в режиме vtysh:
+```
+
+```
+! Далее вводите в режиме vtysh (# = символ комментария):
 configure terminal
+!
+! Router-ID = IP-адрес loopback (уникальный номер для процесса)
 router ospf
   ospf router-id 1.1.1.1
-  network 10.0.0.0/30 area 0    ! Только интерфейс туннеля
-  passive-interface default      ! запретить на всех
-  no passive-interface gre1      ! разрешить только на туннель
-  redistribute connected         ! анонсировать подключённые сети
-exchange
+  !
+  ! Анонсируем только сеть туннеля в area 0:
+  network 10.0.0.0/30 area 0
+  !
+  ! Рассылаем подключённые сети (включая VLAN100/200/999 и BR-сеть):
+  redistribute connected
+  !
+  ! Отключаем passive для всех кроме туннеля:
+  passive-interface default
+  no passive-interface gre1
 !
-# Парольная защита OSPF
+! Пароль на OSPF на туннельном интерфейсе:
 interface gre1
   ip ospf authentication message-digest
   ip ospf message-digest-key 1 md5 P@ssw0rd
 end
-write
+write memory
+```
+
+### Настройка OSPF на BR-RTR
+
+```bash
+vtysh
+```
+
+```
+configure terminal
+router ospf
+  ospf router-id 2.2.2.2
+  network 10.0.0.0/30 area 0
+  redistribute connected
+  passive-interface default
+  no passive-interface gre1
+!
+interface gre1
+  ip ospf authentication message-digest
+  ip ospf message-digest-key 1 md5 P@ssw0rd
+end
+write memory
 ```
 
 ```bash
-# Проверка
-show ip ospf neighbor
-show ip route
+# Проверка (дождитесь ~30 секунд и проверьте):
+vtysh -c "show ip ospf neighbor"
+# Должен быть сосед со статусом Full
+
+vtysh -c "show ip route ospf"
+# Должны быть видны сети другой стороны
+
+# Пинг сети другого роутера (с HQ-RTR до BR):
+ping -c3 192.168.20.2
 ```
 
 ---
 
-## Задание 8 — NAT на HQ-RTR и BR-RTR (доступ в Интернет)
+## Задание 8 — NAT (выход в интернет) на ISP, HQ-RTR, BR-RTR
+
+> 📌 Включить IP-форвардинг и NAT MASQUERADE.
 
 ```bash
-# включить форвардинг
-echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf && sysctl -p
+# ==== На ISP, HQ-RTR, BR-RTR ====
 
-# NAT на интерфейс в сторону ISP (eth0)
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# Шаг 1: включить форвардинг (передача пакетов)
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+# Проверка:
+cat /proc/sys/net/ipv4/ip_forward
+# Должно вывести: 1
 
-# Сохранить
-iptables-save > /etc/sysconfig/iptables
+# Шаг 2: правило NAT
+# Замените ens18 на имя WAN-интерфейса (к ISP)
+iptables -t nat -A POSTROUTING -o ens18 -j MASQUERADE
+
+# Проверка правила:
+iptables -t nat -L POSTROUTING -n -v
+
+# Шаг 3: сохранить правила навсегда
+apt-get install -y iptables-service
+service iptables save
 systemctl enable iptables
-systemctl start iptables
-
-# Проверка (с HQ-CLI)
-ping 8.8.8.8
 ```
 
 ---
 
-## Задание 9 — DHCP для HQ-CLI на HQ-RTR
+## Задание 9 — DHCP-сервер для HQ-CLI
+
+> 📌 DHCP-сервер настраивается на HQ-RTR. Он выдаёт IP клиентам из VLAN200 (в нашем случае HQ-CLI).
 
 ```bash
+# ==== На HQ-RTR ====
 apt-get install -y dhcp-server
+
+# Основной конфиг:
 vim /etc/dhcp/dhcpd.conf
 ```
 
 ```
+# Объявляем подсеть VLAN200
 subnet 192.168.200.0 netmask 255.255.255.224 {
-    range 192.168.200.2 192.168.200.30;    # исключаем .1 (шлюз)
-    option routers 192.168.200.1;
-    option domain-name-servers 192.168.100.2;   # IP HQ-SRV
+    range 192.168.200.10 192.168.200.30;  # диапазон выдачи
+    option routers 192.168.200.1;         # шлюз = VLAN200 HQ-RTR
+    option domain-name-servers 192.168.100.2;  # DNS = HQ-SRV
     option domain-name "au-team.irpo";
     default-lease-time 600;
     max-lease-time 7200;
@@ -331,111 +501,162 @@ subnet 192.168.200.0 netmask 255.255.255.224 {
 ```
 
 ```bash
-# Указать интерфейс для DHCP-сервера
+# Указать, на каком интерфейсе слушать DHCP:
 vim /etc/sysconfig/dhcpd
-# DHCPDv4_ARGS="eth0.200"   <- интерфейс VLAN200
+# Найти строку DHCPDv4_ARGS и изменить:
+# DHCPDv4_ARGS="ens19.200"
+# (где ens19.200 = VLAN200 на trunk-интерфейсе)
 
 systemctl enable dhcpd
 systemctl start dhcpd
 
-# Проверка на HQ-CLI
-dhclient eth0
+# Проверка на HQ-CLI (DHCP-клиент):
+# Убедитесь, что HQ-CLI в настройках Proxmox подключён к vmbr3 с VLAN Tag = 200
+nmcli con mod "ens18" ipv4.method auto
+nmcli con up "ens18"
 ip a
+# Должен получить адрес из диапазона 192.168.200.10-30
 ```
 
 ---
 
-## Задание 10 — DNS-сервер на HQ-SRV (BIND)
+## Задание 10 — DNS-сервер (BIND9) на HQ-SRV
+
+> 📌 DNS разрешает имена в IP-адреса и наоборот. Требуется зона au-team.irpo + обратная зона + forwarder на внешний DNS.
 
 ```bash
+# ==== На HQ-SRV ====
 apt-get install -y bind
+systemctl enable named
+```
 
+```bash
+# Главный конфиг:
 vim /etc/bind/named.conf
 ```
 
-Добавить зоны:
-
 ```
-zone "au-team.irpo" {
+options {
+    directory "/var/bind";
+    listen-on { any; };         // слушать на всех интерфейсах
+    allow-query { any; };       // отвечать всем
+    recursion yes;
+    forwarders { 77.88.8.7; 77.88.8.3; };  // внешние DNS (Яндекс)
+    forward first;
+};
+
+zone "au-team.irpo" IN {
     type master;
     file "/etc/bind/au-team.irpo.zone";
 };
 
-zone "100.168.192.in-addr.arpa" {
+zone "100.168.192.in-addr.arpa" IN {
     type master;
     file "/etc/bind/100.168.192.rev";
 };
-
-zone "." {
-    type forward;
-    forwarders { 77.88.8.7; 77.88.8.3; };
-};
-```
-
-Файл зоны (`/etc/bind/au-team.irpo.zone`):
-
-```
-$TTL 86400
-@   IN SOA hq-srv.au-team.irpo. admin.au-team.irpo. (
-            2026042201 ; serial
-            3600       ; refresh
-            1800       ; retry
-            604800     ; expire
-            86400 )    ; minimum
-
-@           IN  NS  hq-srv.au-team.irpo.
-hq-rtr      IN  A   192.168.100.1    ; IP HQ-RTR в VLAN100
-br-rtr      IN  A   192.168.20.1     ; IP BR-RTR
-hq-srv      IN  A   192.168.100.2    ; IP HQ-SRV
-hq-cli      IN  A   192.168.200.2    ; IP HQ-CLI
-br-srv      IN  A   192.168.20.2     ; IP BR-SRV
-docker      IN  A   172.16.1.1       ; IP ISP в сторону HQ
-web         IN  A   172.16.2.1       ; IP ISP в сторону BR
-```
-
-Обратная зона (`/etc/bind/100.168.192.rev`):
-
-```
-$TTL 86400
-@   IN SOA hq-srv.au-team.irpo. admin.au-team.irpo. (
-            2026042201 3600 1800 604800 86400 )
-
-@   IN  NS  hq-srv.au-team.irpo.
-1   IN  PTR hq-rtr.au-team.irpo.
-2   IN  PTR hq-srv.au-team.irpo.
 ```
 
 ```bash
-# Настроить прослушивание на всех интерфейсах
-vim /etc/bind/named.conf
-# listen-on { any; };
-# allow-query { any; };
+# Файл прямой зоны:
+vim /etc/bind/au-team.irpo.zone
+```
 
-systemctl enable named
-systemctl start named
+```
+$TTL 86400
+@   IN SOA hq-srv.au-team.irpo. admin.au-team.irpo. (
+        2026042201 ; Serial (YYYYMMDDNN)
+        3600       ; Refresh
+        1800       ; Retry
+        604800     ; Expire
+        86400 )    ; Minimum TTL
 
-# Проверка
+; Сервер имён
+@       IN  NS  hq-srv.au-team.irpo.
+
+; A-записи (необходимо указывать IP вашего HQ-SRV)
+hq-rtr  IN  A   192.168.100.1
+br-rtr  IN  A   192.168.20.1
+hq-srv  IN  A   192.168.100.2
+hq-cli  IN  A   192.168.200.10  ; или IP полученный по DHCP
+br-srv  IN  A   192.168.20.2
+
+; ISP-адреса (для веб-сервисов на nginx)
+docker  IN  A   172.16.1.1
+web     IN  A   172.16.2.1
+```
+
+```bash
+# Обратная зона:
+vim /etc/bind/100.168.192.rev
+```
+
+```
+$TTL 86400
+@   IN SOA hq-srv.au-team.irpo. admin.au-team.irpo. (
+        2026042201 3600 1800 604800 86400 )
+
+@   IN  NS   hq-srv.au-team.irpo.
+1   IN  PTR  hq-rtr.au-team.irpo.    ; 192.168.100.1
+2   IN  PTR  hq-srv.au-team.irpo.    ; 192.168.100.2
+```
+
+```bash
+# Проверить конфиг на ошибки:
+named-checkconf /etc/bind/named.conf
+named-checkzone au-team.irpo /etc/bind/au-team.irpo.zone
+
+systemctl restart named
+
+# Тестовые запросы:
 nslookup hq-srv.au-team.irpo 127.0.0.1
+nslookup 192.168.100.2 127.0.0.1
 dig hq-rtr.au-team.irpo @127.0.0.1
 ```
 
 ---
 
-## Задание 11 — Часовой пояс на всех устройствах
+## Задание 11 — Часовой пояс
 
 ```bash
-# Установить часовой пояс (выберите нужный по месту проведения экзамена)
-timedatectl set-timezone Europe/Moscow    # Москва
-# или
-timedatectl set-timezone Asia/Vladivostok # Владивосток
-# или
-timedatectl set-timezone Asia/Yekaterinburg # Екатеринбург
+# Выбор зоны зависит от города проведения экзамена!
+# Спросите эксперта заранее.
 
-# Проверка
-timedatectl
-date
+# Примеры:
+timedatectl set-timezone Europe/Moscow       # UTC+3 Москва
+timedatectl set-timezone Asia/Yekaterinburg  # UTC+5 Екатеринбург
+timedatectl set-timezone Asia/Novosibirsk    # UTC+7 Новосибирск
+timedatectl set-timezone Asia/Irkutsk        # UTC+8 Иркутск
+timedatectl set-timezone Asia/Vladivostok    # UTC+10 Владивосток
+
+# Проверка:
+timedatectl status
+# Должна быть строка Time zone: Asia/Vladivostok (VLAT, +1000)
 ```
 
 ---
 
-[← Назад](../README.md) | [Далее: Модуль 2 →](module2.md)
+## ✅ Конечная проверка модуля 1
+
+```bash
+# С HQ-CLI проверяем всё:
+# 1. Получен ли IP по DHCP
+ip a
+
+# 2. Доступность шлюзов и серверов:
+ping -c2 192.168.100.1   # HQ-RTR VLAN100
+ping -c2 192.168.100.2   # HQ-SRV
+ping -c2 192.168.20.2    # BR-SRV (через OSPF)
+ping -c2 8.8.8.8          # Интернет (через NAT)
+
+# 3. Разрешение имён:
+nslookup hq-srv.au-team.irpo
+nslookup br-srv.au-team.irpo
+
+# 4. SSH на сервера:
+ssh -p 2026 sshuser@192.168.100.2
+# Должен вывести баннер "Authorized access only"
+```
+
+---
+
+[← README](../README.md) | [Далее: Модуль 2 →](module2.md)
