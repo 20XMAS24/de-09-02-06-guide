@@ -1,0 +1,8 @@
+# Robots.txt для справочника демоэкзамена 09.02.06
+# Репозиторий: https://github.com/20XMAS24/de-09-02-06-guide
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://20XMAS24.github.io/de-09-02-06-guide/sitemap.xml
