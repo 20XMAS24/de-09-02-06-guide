@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Справочник демоэкзамена 09.02.06 — ALT Linux + Proxmox</title>
+  <meta name="description" content="Полный справочник по демоэкзамену 09.02.06 Сетевое и системное администрирование: ALT Linux, Proxmox, VLAN, GRE, OSPF, NAT, DHCP, DNS, Samba AD, RAID, NFS, Docker, nginx, WireGuard, Zabbix, fail2ban, rsyslog, Ansible.">
+  <meta name="keywords" content="демоэкзамен 09.02.06, демонстрационный экзамен 09.02.06, ALT Linux, Альт Linux, Proxmox, сетевое и системное администрирование, VLAN, GRE, OSPF, FRRouting, DHCP, DNS, BIND, Samba AD, RAID0, NFS, autofs, Docker, nginx reverse proxy, Apache, MariaDB, WireGuard, fail2ban, Zabbix, rsyslog, chrony, NTP, Ansible, КИРПО, ИРПО, сетевой администратор">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#01696f">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Справочник демоэкзамена 09.02.06">
+  <meta property="og:description" content="Быстрый и удобный справочник по ALT Linux + Proxmox для подготовки к демоэкзамену.">
+  <meta property="og:locale" content="ru_RU">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root,[data-theme="light"]{
+      --text-xs:clamp(.75rem,.7rem + .25vw,.875rem);
+      --text-sm:clamp(.875rem,.8rem + .35vw,1rem);
+      --text-base:clamp(1rem,.95rem + .25vw,1.125rem);
+      --text-lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+      --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+      --text-2xl:clamp(2rem,1.2rem + 2.5vw,3.5rem);
+      --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;--space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;--space-12:3rem;--space-16:4rem;--space-20:5rem;
+      --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;--color-surface-offset:#f3f0ec;--color-border:#d4d1ca;--color-text:#28251d;--color-text-muted:#66655f;--color-text-faint:#8f8d87;--color-text-inverse:#f9f8f4;--color-primary:#01696f;--color-primary-hover:#0c4e54;--color-blue:#006494;--color-success:#437a22;--color-warning:#964219;--color-purple:#7a39bb;--shadow-sm:0 1px 2px rgba(0,0,0,.06);--shadow-md:0 10px 30px rgba(34,31,26,.08);--radius-sm:.5rem;--radius-md:.9rem;--radius-lg:1.25rem;--radius-xl:1.8rem;--content:1180px;--font-body:'Manrope',sans-serif;--font-mono:'Roboto Mono',monospace;
+    }
+    [data-theme="dark"]{--color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;--color-surface-offset:#252320;--color-border:#393836;--color-text:#e2e0da;--color-text-muted:#b2aea4;--color-text-faint:#807d74;--color-text-inverse:#171614;--color-primary:#4f98a3;--color-primary-hover:#67aab3;--color-blue:#78abd5;--color-success:#85bb62;--color-warning:#d08a5f;--color-purple:#bd92e8;--shadow-sm:0 1px 2px rgba(0,0,0,.25);--shadow-md:0 10px 30px rgba(0,0,0,.32)}
+    *,*:before,*:after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font-body);font-size:var(--text-base);line-height:1.6;background:var(--color-bg);color:var(--color-text)}
+    img,svg{display:block;max-width:100%}
+    a{color:inherit;text-decoration:none}
+    button,input{font:inherit;color:inherit}
+    .skip-link{position:absolute;left:-9999px;top:auto}.skip-link:focus{left:1rem;top:1rem;background:var(--color-primary);color:var(--color-text-inverse);padding:.75rem 1rem;border-radius:var(--radius-sm);z-index:1000}
+    .container{width:min(calc(100% - 2rem),var(--content));margin:0 auto}
+    .site-header{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--color-bg) 86%, transparent);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in srgb,var(--color-text) 12%, transparent)}
+    .header-row{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:.9rem 0}
+    .brand{display:flex;align-items:center;gap:.85rem;font-weight:800}
+    .brand-mark{width:2.5rem;height:2.5rem;border-radius:.9rem;background:linear-gradient(135deg,var(--color-primary),var(--color-blue));display:grid;place-items:center;color:#fff;box-shadow:var(--shadow-md)}
+    .brand-mark svg{width:1.35rem;height:1.35rem}
+    .brand-text small{display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted)}
+    .header-actions{display:flex;align-items:center;gap:.75rem}
+    .theme-toggle,.menu-link{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:.75rem 1rem;border:1px solid color-mix(in srgb,var(--color-text) 12%, transparent);border-radius:999px;background:var(--color-surface);transition:.18s ease}
+    .theme-toggle:hover,.menu-link:hover,.search-box:focus-within{border-color:color-mix(in srgb,var(--color-primary) 40%, transparent);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-primary) 12%, transparent)}
+    .hero{padding:clamp(3.5rem,8vw,6.5rem) 0 clamp(2.5rem,6vw,4.5rem)}
+    .hero-grid{display:grid;grid-template-columns:1.25fr .9fr;gap:var(--space-8);align-items:start}
+    .eyebrow{display:inline-flex;gap:.5rem;align-items:center;padding:.45rem .8rem;border-radius:999px;background:color-mix(in srgb,var(--color-primary) 12%, var(--color-surface));color:var(--color-primary);font-size:var(--text-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    h1{font-size:var(--text-2xl);line-height:1.05;max-width:12ch;margin-top:var(--space-4);margin-bottom:var(--space-4)}
+    .hero p{max-width:64ch;color:var(--color-text-muted)}
+    .hero-actions{display:flex;flex-wrap:wrap;gap:.9rem;margin-top:var(--space-6)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.6rem;min-height:46px;padding:.9rem 1.15rem;border-radius:999px;font-weight:800;border:1px solid transparent;transition:.18s ease}
+    .btn-primary{background:var(--color-primary);color:var(--color-text-inverse)}
+    .btn-primary:hover{background:var(--color-primary-hover);transform:translateY(-1px)}
+    .btn-secondary{background:var(--color-surface);border-color:color-mix(in srgb,var(--color-text) 12%, transparent)}
+    .hero-card,.card,.search-panel,.module-card,.keyword-card{background:var(--color-surface);border:1px solid color-mix(in srgb,var(--color-text) 10%, transparent);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+    .hero-card{padding:var(--space-6)}
+    .hero-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--space-4);margin-top:var(--space-4)}
+    .stat{padding:var(--space-4);background:var(--color-surface-2);border-radius:var(--radius-md)}
+    .stat strong{display:block;font-size:var(--text-xl);line-height:1;margin-bottom:.25rem}
+    .section{padding:var(--space-16) 0}
+    .section-head{display:flex;align-items:end;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-6)}
+    .section-head p{color:var(--color-text-muted);max-width:60ch}
+    h2{font-size:var(--text-xl);line-height:1.1}
+    .search-panel{padding:var(--space-6);position:sticky;top:5.5rem}
+    .search-box{display:flex;align-items:center;gap:.75rem;padding:.95rem 1rem;border-radius:var(--radius-md);background:var(--color-surface-2);border:1px solid color-mix(in srgb,var(--color-text) 10%, transparent)}
+    .search-box input{border:none;background:transparent;outline:none;width:100%}
+    .layout{display:grid;grid-template-columns:minmax(0,1.2fr) 360px;gap:var(--space-8)}
+    .module-grid,.quick-grid,.keyword-grid,.links-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-5)}
+    .module-card,.card,.keyword-card{padding:var(--space-5)}
+    .module-card h3,.card h3{font-size:var(--text-lg);margin-bottom:.55rem}
+    .tag-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:var(--space-4)}
+    .tag{padding:.45rem .7rem;border-radius:999px;background:color-mix(in srgb,var(--color-primary) 9%, var(--color-surface-offset));font-size:var(--text-xs);font-weight:700;color:var(--color-primary)}
+    .muted{color:var(--color-text-muted)}
+    .quick-list,.check-list,.mini-list{display:grid;gap:.75rem;margin-top:var(--space-4)}
+    .quick-list li,.check-list li,.mini-list li{list-style:none;padding-left:1.5rem;position:relative;color:var(--color-text-muted)}
+    .quick-list li:before,.check-list li:before,.mini-list li:before{content:"";width:.55rem;height:.55rem;border-radius:999px;background:var(--color-primary);position:absolute;left:0;top:.55rem}
+    .module-anchor{display:inline-flex;margin-top:var(--space-4);font-weight:800;color:var(--color-primary)}
+    .topology{padding:var(--space-6);background:linear-gradient(180deg,var(--color-surface-2),var(--color-surface));border-radius:var(--radius-lg);border:1px solid color-mix(in srgb,var(--color-text) 10%, transparent);overflow:auto}
+    pre{font-family:var(--font-mono);font-size:.85rem;line-height:1.55;white-space:pre;min-width:680px;color:var(--color-text)}
+    .table-wrap{overflow:auto;border:1px solid color-mix(in srgb,var(--color-text) 10%, transparent);border-radius:var(--radius-lg);background:var(--color-surface)}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th,td{padding:1rem;border-bottom:1px solid color-mix(in srgb,var(--color-text) 8%, transparent);text-align:left;vertical-align:top}
+    th{font-size:var(--text-sm);color:var(--color-text-muted);background:var(--color-surface-2)}
+    tbody tr:hover{background:color-mix(in srgb,var(--color-primary) 4%, var(--color-surface))}
+    .keyword-card p{color:var(--color-text-muted)}
+    .keyword-cloud{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:var(--space-4)}
+    .keyword-chip{padding:.55rem .8rem;border-radius:999px;background:var(--color-surface-offset);font-size:var(--text-sm);border:1px solid color-mix(in srgb,var(--color-text) 8%, transparent)}
+    .site-footer{padding:var(--space-10) 0 var(--space-16);border-top:1px solid color-mix(in srgb,var(--color-text) 10%, transparent)}
+    .footer-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:var(--space-6)}
+    .small{font-size:var(--text-sm);color:var(--color-text-muted)}
+    .search-result mark{background:color-mix(in srgb,var(--color-warning) 22%, transparent);color:inherit;padding:.05rem .2rem;border-radius:.25rem}
+    @media (max-width: 1080px){.hero-grid,.layout,.footer-grid{grid-template-columns:1fr}.search-panel{position:static}.module-grid,.quick-grid,.keyword-grid,.links-grid{grid-template-columns:1fr}}
+    @media (max-width: 640px){.header-row{align-items:flex-start;flex-direction:column}.header-actions{width:100%;justify-content:space-between}.hero-actions{flex-direction:column;align-items:stretch}.btn,.menu-link{width:100%}.topology{padding:var(--space-4)}pre{min-width:560px}}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Перейти к содержанию</a>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="#top" aria-label="На главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7h16M7 12h10M10 17h4"></path>
+          </svg>
+        </span>
+        <span class="brand-text">DE 09.02.06 Guide<small>Справочник по ALT Linux и Proxmox</small></span>
+      </a>
+      <div class="header-actions">
+        <a class="menu-link" href="#modules">Модули</a>
+        <a class="menu-link" href="#keywords">SEO-ключи</a>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Сменить тему">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div>
+          <span class="eyebrow">09.02.06 · ALT Linux · Proxmox · 2026</span>
+          <h1>Структурированный сайт-справочник для подготовки к демоэкзамену</h1>
+          <p>На одной странице собраны ключевые темы экзамена: IP-план, модули, команды, сервисы, топология, учётные данные и поисковые ключи. Сайт оптимизирован под GitHub Pages, быстрый поиск по странице и индексацию поисковиками.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#modules">Открыть модули</a>
+            <a class="btn btn-secondary" href="./README.md" target="_blank" rel="noopener noreferrer">Исходный README</a>
+          </div>
+        </div>
+        <aside class="hero-card" aria-label="Краткая сводка">
+          <h2 style="font-size:var(--text-lg);margin-bottom:.5rem">Что внутри</h2>
+          <p class="muted">Подготовлено по содержимому репозитория: README, модули, FAQ, cheatsheet, таблицы IP и учётных записей.</p>
+          <div class="hero-stats">
+            <div class="stat"><strong>3</strong><span class="muted">экзаменационных модуля</span></div>
+            <div class="stat"><strong>20+</strong><span class="muted">сетевых и системных тем</span></div>
+            <div class="stat"><strong>1</strong><span class="muted">единый справочник</span></div>
+            <div class="stat"><strong>SEO</strong><span class="muted">мета-данные и ключевые слова</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="overview-title">
+      <div class="container layout">
+        <div>
+          <div class="section-head">
+            <div>
+              <h2 id="overview-title">Обзор экзамена</h2>
+              <p>Демоэкзамен покрывает сетевую инфраструктуру, администрирование и эксплуатацию: от VLAN и GRE до мониторинга, VPN, резервного копирования и доменной инфраструктуры.</p>
+            </div>
+          </div>
+          <div class="quick-grid">
+            <article class="card search-result">
+              <h3>Ключевые темы</h3>
+              <ul class="quick-list">
+                <li>VLAN, router-on-a-stick, GRE, OSPF, NAT, DHCP, DNS.</li>
+                <li>Samba AD, RAID0, NFS, chrony NTP, Ansible, Docker.</li>
+                <li>Apache, MariaDB, nginx reverse proxy, WireGuard, Zabbix, rsyslog, fail2ban.</li>
+              </ul>
+            </article>
+            <article class="card search-result">
+              <h3>Быстрые параметры</h3>
+              <ul class="quick-list">
+                <li>Домен: <strong>au-team.irpo</strong>.</li>
+                <li>SSH-порт: <strong>2026</strong>, баннер: Authorized access only.</li>
+                <li>Основной пароль в примерах: <strong>P@ssw0rd</strong>.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+        <aside class="search-panel" aria-label="Поиск по справочнику">
+          <h2 style="font-size:var(--text-lg);margin-bottom:.75rem">Поиск по странице</h2>
+          <label class="search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input id="site-search" type="search" placeholder="Например: OSPF, WireGuard, Samba, DHCP" aria-label="Поиск по сайту">
+          </label>
+          <p class="small" style="margin-top:.85rem">Поиск фильтрует карточки и подсвечивает совпадения. Это помогает быстро находить нужные команды и темы прямо на GitHub Pages.</p>
+          <div class="tag-row">
+            <span class="tag">ALT Linux</span>
+            <span class="tag">Proxmox</span>
+            <span class="tag">OSPF</span>
+            <span class="tag">WireGuard</span>
+            <span class="tag">Docker</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="modules">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <h2>Модули</h2>
+            <p>Каждый модуль отражает структуру репозитория и основные задачи, которые нужно закрыть на экзамене.</p>
+          </div>
+        </div>
+        <div class="module-grid">
+          <article class="module-card search-result" id="module1">
+            <h3>Модуль 1 — Сетевая инфраструктура</h3>
+            <p class="muted">Hostname, VLSM, пользователи, VLAN 100/200/999, SSH на 2026, GRE-туннель, OSPF через FRR, NAT, DHCP, DNS и часовой пояс.</p>
+            <ul class="check-list">
+              <li>Настройка IP на ISP, HQ-RTR, BR-RTR, HQ-SRV, BR-SRV, HQ-CLI.</li>
+              <li>Транк и подсети для HQ, GRE 10.0.0.0/30.</li>
+              <li>DHCP для HQ-CLI и DNS на HQ-SRV.</li>
+            </ul>
+            <a class="module-anchor" href="./modules/module1.md" target="_blank" rel="noopener noreferrer">Открыть module1.md →</a>
+          </article>
+          <article class="module-card search-result" id="module2">
+            <h3>Модуль 2 — Сетевое администрирование</h3>
+            <p class="muted">Samba AD DC на BR-SRV, RAID0 и NFS на HQ-SRV, autofs на HQ-CLI, chrony, Ansible, Docker, Apache, MariaDB, port forwarding и nginx basic auth.</p>
+            <ul class="check-list">
+              <li>Развёртывание домена AU-TEAM.IRPO и ввод клиента в домен.</li>
+              <li>RAID0 через mdadm и публикация NFS-ресурса.</li>
+              <li>Docker и веб-стек для сервисов экзамена.</li>
+            </ul>
+            <a class="module-anchor" href="./modules/module2.md" target="_blank" rel="noopener noreferrer">Открыть module2.md →</a>
+          </article>
+          <article class="module-card search-result" id="module3">
+            <h3>Модуль 3 — Эксплуатация</h3>
+            <p class="muted">WireGuard site-to-site, iptables firewall, Zabbix, rsyslog, CUPS, Ansible playbook, fail2ban и резервное копирование.</p>
+            <ul class="check-list">
+              <li>Шифрованный VPN между HQ-RTR и BR-RTR.</li>
+              <li>Мониторинг и централизованные логи.</li>
+              <li>Жёсткая безопасность и backup-практики.</li>
+            </ul>
+            <a class="module-anchor" href="./modules/module3.md" target="_blank" rel="noopener noreferrer">Открыть module3.md →</a>
+          </article>
+          <article class="module-card search-result">
+            <h3>Дополнительные материалы</h3>
+            <p class="muted">Шпаргалка, FAQ, таблица IP-адресации, учётные записи и инструкция по Proxmox помогают быстро восстановить детали во время подготовки.</p>
+            <div class="links-grid" style="margin-top:1rem">
+              <a class="card" href="./CHEATSHEET.md" target="_blank" rel="noopener noreferrer"><h3 style="font-size:1rem">CHEATSHEET</h3><p class="small">Команды на одной странице.</p></a>
+              <a class="card" href="./FAQ.md" target="_blank" rel="noopener noreferrer"><h3 style="font-size:1rem">FAQ</h3><p class="small">Частые проблемы и решения.</p></a>
+              <a class="card" href="./modules/ip-table.md" target="_blank" rel="noopener noreferrer"><h3 style="font-size:1rem">IP Table</h3><p class="small">Готовая адресная таблица.</p></a>
+              <a class="card" href="./PROXMOX-SETUP.md" target="_blank" rel="noopener noreferrer"><h3 style="font-size:1rem">Proxmox Setup</h3><p class="small">Бриджи, ВМ и VLAN.</p></a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="topology-section">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <h2>Топология</h2>
+            <p>Ниже краткая схема сети из README, удобная как визуальный ориентир при подготовке.</p>
+          </div>
+        </div>
+        <div class="topology search-result" aria-label="Сетевая топология">
+<pre>          [Internet]
+               |
+       [ISP - Альт JeOS]
+        /              \
+  172.16.1.0/28    172.16.2.0/28
+       /                  \
+  [HQ-RTR]             [BR-RTR]
+  Альт JeOS            Альт JeOS
+  /    |    \                 |
+ VLAN  VLAN  VLAN99       192.168.20.0/28
+  100  200  (mgmt)             |
+   |    |                  [BR-SRV]
+[HQ-SRV] [HQ-CLI]         Альт Server
+
+     GRE-туннель: 10.0.0.0/30
+     HQ-RTR (10.0.0.1) ↔ BR-RTR (10.0.0.2)</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ip-plan">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <h2>IP-план и доступы</h2>
+            <p>Таблицы ниже адаптированы из modules/ip-table.md и modules/credentials.md, чтобы всё важное было под рукой на одной странице.</p>
+          </div>
+        </div>
+        <div class="table-wrap search-result" style="margin-bottom:1.5rem">
+          <table>
+            <thead>
+              <tr><th>Сегмент</th><th>Маска</th><th>Пример сети</th><th>Шлюз</th><th>Хост</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>ISP → HQ-RTR</td><td>/28</td><td>172.16.1.0/28</td><td>172.16.1.1</td><td>172.16.1.2</td></tr>
+              <tr><td>ISP → BR-RTR</td><td>/28</td><td>172.16.2.0/28</td><td>172.16.2.1</td><td>172.16.2.2</td></tr>
+              <tr><td>HQ-SRV (VLAN100)</td><td>/27</td><td>192.168.100.0/27</td><td>192.168.100.1</td><td>192.168.100.2</td></tr>
+              <tr><td>HQ-CLI (VLAN200)</td><td>/27</td><td>192.168.200.0/27</td><td>192.168.200.1</td><td>DHCP</td></tr>
+              <tr><td>VLAN999</td><td>/29</td><td>192.168.99.0/29</td><td>192.168.99.1</td><td>—</td></tr>
+              <tr><td>BR-SRV</td><td>/28</td><td>192.168.20.0/28</td><td>192.168.20.1</td><td>192.168.20.2</td></tr>
+              <tr><td>GRE</td><td>/30</td><td>10.0.0.0/30</td><td>10.0.0.1</td><td>10.0.0.2</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-wrap search-result">
+          <table>
+            <thead>
+              <tr><th>Сервис / узел</th><th>Пользователь</th><th>Пароль</th><th>Примечание</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>HQ-SRV, BR-SRV</td><td>sshuser</td><td>P@ssw0rd</td><td>UID 2026, sudo NOPASSWD</td></tr>
+              <tr><td>HQ-RTR, BR-RTR</td><td>net_admin</td><td>P@ssw0rd</td><td>sudo NOPASSWD</td></tr>
+              <tr><td>Samba AD</td><td>Administrator</td><td>P@ssw0rd</td><td>Администратор домена</td></tr>
+              <tr><td>Zabbix</td><td>admin</td><td>P@ssw0rd</td><td>Веб-интерфейс</td></tr>
+              <tr><td>nginx basic auth</td><td>WEB</td><td>P@ssw0rd</td><td>web.au-team.irpo</td></tr>
+              <tr><td>Кибер Бэкап</td><td>irpoadmin</td><td>P@ssw0rd</td><td>Админ сервера</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="keywords">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <h2>Ключевые слова для индексации</h2>
+            <p>Этот блок добавлен специально под поиск: он повторяет важные тематические фразы в читаемом виде, а meta keywords и description помогают поисковым системам точнее понять содержание страницы.</p>
+          </div>
+        </div>
+        <div class="keyword-grid">
+          <article class="keyword-card search-result">
+            <h3>Экзамен и платформа</h3>
+            <p>Демоэкзамен 09.02.06, демонстрационный экзамен, сетевое и системное администрирование, ALT Linux, Альт Linux, ALT JeOS, ALT Server, Proxmox VE, Linux Bridge, vmbr.</p>
+            <div class="keyword-cloud">
+              <span class="keyword-chip">демоэкзамен 09.02.06</span>
+              <span class="keyword-chip">ALT Linux</span>
+              <span class="keyword-chip">Proxmox VE</span>
+              <span class="keyword-chip">сетевой администратор</span>
+            </div>
+          </article>
+          <article class="keyword-card search-result">
+            <h3>Сеть и маршрутизация</h3>
+            <p>nmcli, VLAN, 802.1Q, GRE-туннель, OSPF, FRRouting, vtysh, NAT, MASQUERADE, iptables, DHCP, dhcpd, BIND, named, DNS, PTR, nslookup, dig.</p>
+            <div class="keyword-cloud">
+              <span class="keyword-chip">VLAN</span>
+              <span class="keyword-chip">GRE</span>
+              <span class="keyword-chip">OSPF</span>
+              <span class="keyword-chip">DHCP</span>
+              <span class="keyword-chip">DNS</span>
+            </div>
+          </article>
+          <article class="keyword-card search-result">
+            <h3>Сервисы и инфраструктура</h3>
+            <p>Samba AD, Domain Controller, RAID0, mdadm, NFS, autofs, chrony, Ansible, Docker, docker-compose, Apache, MariaDB, nginx reverse proxy, WireGuard VPN.</p>
+            <div class="keyword-cloud">
+              <span class="keyword-chip">Samba AD</span>
+              <span class="keyword-chip">RAID0</span>
+              <span class="keyword-chip">Docker</span>
+              <span class="keyword-chip">WireGuard</span>
+            </div>
+          </article>
+          <article class="keyword-card search-result">
+            <h3>Безопасность и мониторинг</h3>
+            <p>fail2ban, firewall, Zabbix, rsyslog, logrotate, CUPS, резервное копирование, Кибер Бэкап, hostnamectl, timezone, Europe/Moscow, sshd_config, порт 2026.</p>
+            <div class="keyword-cloud">
+              <span class="keyword-chip">fail2ban</span>
+              <span class="keyword-chip">Zabbix</span>
+              <span class="keyword-chip">rsyslog</span>
+              <span class="keyword-chip">ssh 2026</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand" style="margin-bottom:.8rem">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M7 12h10M10 17h4"></path></svg>
+          </span>
+          <span class="brand-text">DE 09.02.06 Guide<small>Справочник, оптимизированный под GitHub Pages</small></span>
+        </div>
+        <p class="small">Страница сделана как единая точка входа в материалы репозитория: удобно открыть с телефона, быстро искать по словам и отдавать ссылку другим студентам.</p>
+      </div>
+      <div>
+        <p class="small">Для лучшей индексации используются title, description, keywords, Open Graph, структурированные секции с тематическими заголовками и текстовый блок с ключевыми запросами.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function(){
+      const root=document.documentElement;
+      const btn=document.querySelector('[data-theme-toggle]');
+      let theme=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+      root.setAttribute('data-theme',theme);
+      const render=()=>{btn.innerHTML=theme==='dark'?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>':'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';};
+      render();
+      btn.addEventListener('click',()=>{theme=theme==='dark'?'light':'dark';root.setAttribute('data-theme',theme);render();});
+
+      const input=document.getElementById('site-search');
+      const blocks=[...document.querySelectorAll('.search-result')];
+      const original=blocks.map(el=>el.innerHTML);
+      const escapeRegExp=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      input.addEventListener('input',()=>{
+        const q=input.value.trim().toLowerCase();
+        blocks.forEach((el,i)=>{
+          el.innerHTML=original[i];
+          const text=el.textContent.toLowerCase();
+          const show=!q || text.includes(q);
+          el.style.display=show?'':'none';
+          if(show && q){
+            const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null);
+            const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+            nodes.forEach(node=>{
+              const val=node.nodeValue;
+              if(!val.trim()) return;
+              const re=new RegExp('('+escapeRegExp(q)+')','ig');
+              if(re.test(val)){
+                const span=document.createElement('span');
+                span.innerHTML=val.replace(re,'<mark>$1</mark>');
+                node.parentNode.replaceChild(span,node);
+              }
+            });
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
